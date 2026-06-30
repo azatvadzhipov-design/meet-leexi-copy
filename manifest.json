@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Meet + Leexi (1-click)",
+  "version": "1.2.0",
+  "description": "Создаёт новый Google Meet и сразу приглашает ноут-тейкера Leexi.",
+  "action": {
+    "default_title": "Создать Meet + позвать Leexi"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["tabs", "scripting", "clipboardWrite", "storage"],
+  "host_permissions": [
+    "https://public-api.leexi.ai/*",
+    "https://meet.google.com/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
