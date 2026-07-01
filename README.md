@@ -1,48 +1,59 @@
 # Meet + Leexi (1-click)
 
-Кнопка в тулбаре Chrome: создаёт новый Google Meet, копирует ссылку-приглашение в буфер обмена и сразу приглашает в звонок ноут-тейкера Leexi.
+A Chrome toolbar button that creates a new Google Meet, copies the invite link to your clipboard, and instantly invites the [Leexi](https://leexi.ai) note-taker bot into the call.
 
-## Как работает
-1. Клик по иконке → открывается новая вкладка `meet.google.com/new`.
-2. Расширение ловит итоговый URL встречи (например `meet.google.com/abc-defg-hij`).
-3. **Копирует ссылку-приглашение в буфер обмена** — можно сразу вставить в чат/календарь.
-4. Делает `POST /v1/meeting_events` в Leexi с `to_record: true` → бот сам подключается к звонку.
-5. На странице Meet всплывает тост «Leexi приглашён · ссылка скопирована», на иконке — галочка ✓.
+## Features
+- One click: new Google Meet + the Leexi note-taker joins automatically.
+- The invite link is copied to your clipboard right away — paste it anywhere.
+- `user_uuid` is resolved automatically from your organizer email (and cached).
+- Secrets stay in a local, git-ignored `config.js`.
 
-## Установка
-1. Создай локальный конфиг и впиши данные Leexi:
+## How it works
+1. Click the toolbar icon → a new `meet.google.com/new` tab opens.
+2. The extension captures the final meeting URL (e.g. `meet.google.com/abc-defg-hij`).
+3. It copies the invite link to your clipboard.
+4. It calls `POST /v1/meeting_events` on the Leexi API with `to_record: true` → the bot joins automatically.
+5. A toast appears on the Meet page and the icon shows a ✓ badge.
+
+## Install
+1. Create your local config and fill in your Leexi credentials:
    ```bash
    cp config.example.js config.js
    ```
-   Нужно только `key_id`, `key_secret` и `organizer` (твой email в Leexi).
-   `user_uuid` подтянется автоматически по email. `config.js` в `.gitignore` — секреты не попадут в git.
-2. Открой Chrome в нужном профиле (тот Google-аккаунт, под которым создаёшь миты).
-   Подсказка для запуска конкретного профиля на macOS:
+   You only need `key_id`, `key_secret` and `organizer` (your Leexi email).
+   `user_uuid` is resolved automatically. `config.js` is git-ignored — secrets never reach git.
+2. Open Chrome in the profile / Google account you use to create meetings.
+   Tip for launching a specific profile on macOS:
    ```bash
    open -na "Google Chrome" --args --profile-directory="Profile 1"
    ```
-   (директория профиля видна на `chrome://version` → «Profile Path»).
-3. Перейди на `chrome://extensions`, включи **Developer mode**.
-4. **Load unpacked** → выбери папку с расширением.
-5. (Опц.) Закрепи иконку через значок «пазл» в тулбаре.
+   (find your profile directory at `chrome://version` → "Profile Path").
+3. Go to `chrome://extensions` and enable **Developer mode**.
+4. **Load unpacked** → select this folder.
+5. (Optional) Pin the icon from the puzzle-piece menu in the toolbar.
 
-> Расширение работает только в том профиле, куда его загрузили.
+> The extension only runs in the profile you load it into.
 
-## Настройка (config.js)
-- `key_id` / `key_secret` — ключи Leexi API.
-- `organizer` — твой email в Leexi; по нему автоматически находится и кешируется `user_uuid`.
-- `user_uuid` — опционально; если задать вручную, запрос к `/users` не делается.
-- `internal` — `true` для внутренних встреч, `false` для внешних/с клиентами.
-- `meeting_minutes` — длительность окна события.
-- `title` — заголовок встречи в Leexi.
+## Configuration (`config.js`)
+| Field | Description |
+|-------|-------------|
+| `key_id` / `key_secret` | Leexi API credentials. |
+| `organizer` | Your Leexi email; `user_uuid` is looked up by it and cached. |
+| `user_uuid` | Optional; if set, the `/users` lookup is skipped. |
+| `internal` | `true` for internal meetings, `false` for external / client calls. |
+| `meeting_minutes` | Length of the created meeting window. |
+| `title` | Meeting title in Leexi. |
 
-После правок `config.js` нажми Reload (⟳) на карточке расширения.
+Reload the extension (⟳ on `chrome://extensions`) after editing `config.js`.
 
-## Безопасность
-- `config.js` содержит секреты Leexi — он в `.gitignore`, не коммить его.
-- Если ключ утёк — перевыпусти Key Secret в Leexi и обнови `config.js`.
+## Security
+- `config.js` holds your Leexi secrets — it is git-ignored, never commit it.
+- If a key leaks, rotate the Key Secret in Leexi and update `config.js`.
 
-## Диагностика
-- Иконка `!` — не удалось получить ссылку Meet (не залогинен в нужном профиле / таймаут 60 с).
-- Иконка `ERR` — наведи курсор: в подсказке текст ошибки от Leexi.
-- Логи: `chrome://extensions` → карточка → «service worker» → Console.
+## Troubleshooting
+- Badge `!` — couldn't get the Meet link (not signed in / 60 s timeout).
+- Badge `ERR` — hover the icon: the tooltip shows the Leexi error.
+- Logs: `chrome://extensions` → the card → "service worker" → Console.
+
+## License
+[MIT](LICENSE)
