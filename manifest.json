@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Meet + Leexi (1-click)",
-  "version": "1.3.0",
-  "description": "Create a new Google Meet and instantly invite the Leexi note-taker bot — in one click.",
+  "version": "1.5.0",
+  "description": "Create a Google Meet or add the Leexi note-taker to your current meeting — in one click.",
   "action": {
     "default_title": "New Meet + invite Leexi",
     "default_icon": {

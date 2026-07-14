@@ -3,17 +3,19 @@
 A Chrome toolbar button that creates a new Google Meet, copies the invite link to your clipboard, and instantly invites the [Leexi](https://leexi.ai) note-taker bot into the call.
 
 ## Features
-- One click: new Google Meet + the Leexi note-taker joins automatically.
-- The invite link is copied to your clipboard right away — paste it anywhere.
+- **Context-aware button:**
+  - On an open Meet call (`meet.google.com/xxx-xxxx-xxx`) → invites Leexi **into that call**.
+  - Anywhere else → creates a **new** Meet + invites Leexi.
+- The invite link is copied to your clipboard — paste it anywhere.
 - `user_uuid` is resolved automatically from your organizer email (and cached).
 - Secrets stay in a local, git-ignored `config.js`.
 
 ## How it works
-1. Click the toolbar icon → a new `meet.google.com/new` tab opens.
-2. The extension captures the final meeting URL (e.g. `meet.google.com/abc-defg-hij`).
-3. It copies the invite link to your clipboard.
-4. It calls `POST /v1/meeting_events` on the Leexi API with `to_record: true` → the bot joins automatically.
-5. A toast appears on the Meet page and the icon shows a ✓ badge.
+- **Invite into the current meeting** — while on `meet.google.com/xxx-xxxx-xxx`, click the icon:
+  the extension copies the link and calls `POST /v1/meeting_events` (`to_record: true`) so the bot joins this call.
+- **Start a new meeting** — anywhere else (any site, or a Meet page that isn't a call), click the icon:
+  a new `meet.google.com/new` tab opens, the extension captures the meeting URL and invites Leexi the same way.
+- Feedback: a toast appears on the Meet page and the icon shows a ✓ badge.
 
 ## Install
 1. Create your local config and fill in your Leexi credentials:

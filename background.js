@@ -1,7 +1,9 @@
 /* Meet + Leexi (1-click)
- * Click the toolbar icon -> open a new Google Meet -> capture the final URL ->
- * copy the invite link to the clipboard -> create a meeting_event in Leexi with
- * to_record:true so the note-taker bot joins automatically.
+ * Context-aware toolbar button:
+ *   - on an open Meet meeting (meet.google.com/xxx-xxxx-xxx) -> invite Leexi into THIS meeting
+ *   - anywhere else                                          -> create a NEW Meet + invite Leexi
+ * In both cases the meeting link is copied to the clipboard and the Leexi
+ * note-taker joins automatically (POST /v1/meeting_events, to_record:true).
  */
 importScripts("config.js"); // -> self.LEEXI_CONFIG
 
@@ -10,29 +12,78 @@ const LEEXI_ENDPOINT = LEEXI_BASE + "/meeting_events";
 const LEEXI_USERS_ENDPOINT = LEEXI_BASE + "/users";
 // Google Meet code like abc-defg-hij (3-4-3 lowercase letters)
 const MEET_CODE_RE = /^https:\/\/meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})(?:[?#].*)?$/;
+const MEET_CODE_PATH = /^\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/;
 const WAIT_TIMEOUT_MS = 60000;
 
-chrome.action.onClicked.addListener(() => {
-  startFlow().catch((e) => setBadge("ERR", "#c0392b", "Failed: " + e.message));
+// ---------- tab classification & dynamic tooltip ----------
+
+// "meeting" = open Meet call; everything else -> a new meeting will be created
+function classifyUrl(url) {
+  let u;
+  try { u = new URL(url); } catch (e) { return "other"; }
+  if (u.hostname === "meet.google.com" && MEET_CODE_PATH.test(u.pathname)) return "meeting";
+  return "other";
+}
+
+// The button is always enabled; the tooltip just tells you what a click will do.
+function updateTitle(tabId, url) {
+  const title = classifyUrl(url || "") === "meeting"
+    ? "Invite Leexi to this meeting"
+    : "New Meet + invite Leexi";
+  chrome.action.setTitle({ tabId, title });
+}
+
+// Refresh tooltips for all open tabs when the service worker (re)starts.
+chrome.tabs.query({}, (tabs) => {
+  for (const t of tabs || []) if (t.id != null) updateTitle(t.id, t.url);
 });
 
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url || changeInfo.status === "complete") updateTitle(tabId, tab.url);
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  chrome.tabs.get(tabId, (tab) => {
+    if (!chrome.runtime.lastError && tab) updateTitle(tabId, tab.url);
+  });
+});
+
+// ---------- click handling ----------
+
+chrome.action.onClicked.addListener((tab) => {
+  if (classifyUrl(tab.url || "") === "meeting") {
+    inviteHere(tab.id, tab.url.split(/[?#]/)[0])
+      .catch((e) => setBadge("ERR", "#c0392b", "Failed: " + e.message));
+  } else {
+    startFlow().catch((e) => setBadge("ERR", "#c0392b", "Failed: " + e.message));
+  }
+});
+
+// New Meet in a fresh tab, then invite Leexi.
 async function startFlow() {
   setBadge("…", "#888888", "Creating Meet…");
   const tab = await chrome.tabs.create({ url: "https://meet.google.com/new", active: true });
-  const tabId = tab.id;
-
-  const meetingUrl = await waitForMeetUrl(tabId, WAIT_TIMEOUT_MS);
+  const meetingUrl = await waitForMeetUrl(tab.id, WAIT_TIMEOUT_MS);
   if (!meetingUrl) {
     setBadge("!", "#c0392b", "Could not get the Meet link (timeout / not signed in?)");
     return;
   }
+  await inviteAndReport(tab.id, meetingUrl, false);
+}
 
-  await copyToClipboard(tabId, meetingUrl); // put the invite link on the clipboard right away
+// Invite Leexi into the meeting already open in this tab.
+async function inviteHere(tabId, meetingUrl) {
+  setBadge("…", "#888888", "Inviting Leexi…");
+  await inviteAndReport(tabId, meetingUrl, true);
+}
 
+// Copy link + call Leexi + show feedback. `here` tweaks the toast wording.
+async function inviteAndReport(tabId, meetingUrl, here) {
+  await copyToClipboard(tabId, meetingUrl);
   try {
     await inviteLeexi(meetingUrl);
     setBadge("✓", "#16a34a", "Leexi invited · link copied: " + meetingUrl);
-    toast(tabId, "🎙️ Leexi invited · link copied 📋", false);
+    toast(tabId, (here ? "🎙️ Leexi invited to this meeting" : "🎙️ Leexi invited") + " · link copied 📋", false);
   } catch (e) {
     setBadge("ERR", "#c0392b", "Link copied, but Leexi not invited: " + e.message);
     toast(tabId, "📋 Link copied · Leexi NOT invited: " + e.message, true);
@@ -64,6 +115,8 @@ function waitForMeetUrl(tabId, timeoutMs) {
     const timer = setTimeout(() => finish(null), timeoutMs);
   });
 }
+
+// ---------- Leexi API ----------
 
 function authHeader(C) {
   return "Basic " + btoa(`${C.key_id}:${C.key_secret}`);
@@ -128,7 +181,9 @@ async function inviteLeexi(meetingUrl) {
   return text;
 }
 
-// Copy the invite link to the clipboard via the active Meet tab.
+// ---------- page helpers ----------
+
+// Copy the invite link to the clipboard via the given tab.
 function copyToClipboard(tabId, text) {
   return chrome.scripting
     .executeScript({
